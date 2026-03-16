@@ -1,0 +1,223 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required) - The unique identifier of the user
+    //   - email: string (required) - The email address of the user
+    //   - displayName: string (optional) - The display name of the user
+    //   - photoURL: string (optional) - The URL of the user's profile photo
+    //   - businessName: string (optional) - The name of the user's business
+    //   - role: string (optional) - The role of the user (e.g., Admin, Contractor, Client)
+    //   - phone: string (optional) - The contact phone number of the user
+    //   - category: string (optional) - The category of the business
+    //   - district: string (optional) - The district of the business
+    //   - gst: string (optional) - The GST number of the business
+    //   - favorites: list of strings (optional) - List of business IDs that the user has favorited
+    //   - createdAt: timestamp (required) - The timestamp when the user was created
+    //
+    // Collection: sites
+    // Document ID: {siteId}
+    // Fields:
+    //   - id: number (required) - The unique identifier of the site
+    //   - userId: string (required) - The ID of the user who owns the site
+    //   - name: string (required) - The name of the site
+    //   - location: string (required) - The location of the site
+    //   - contactNumber: string (optional) - Contact number for the site
+    //   - mapUrl: string (optional) - Google Maps URL for the site
+    //   - inchargeName: string (optional) - Name of the person in charge
+    //   - inchargeContact: string (optional) - Contact number of the person in charge
+    //
+    // Collection: projects
+    // Document ID: {projectId}
+    // Fields:
+    //   - id: string (required) - The unique identifier of the project
+    //   - userId: string (required) - The ID of the user who owns the project
+    //   - name: string (required) - The name of the project
+    //   - startDate: string (required) - The start date of the project
+    //   - estimatedCompletionDate: string (optional) - The estimated completion date
+    //   - status: string (required) - The status of the project
+    //   - description: string (optional) - Description of the project
+    //   - estimatedCost: number (optional) - Estimated cost of the project
+    //   - siteId: number (optional) - ID of the associated site
+    //
+    // Collection: reviews
+    // Document ID: {reviewId}
+    // Fields:
+    //   - id: string (required) - The unique identifier of the review
+    //   - businessId: string (required) - The ID of the business being reviewed
+    //   - userId: string (required) - The ID of the user who wrote the review
+    //   - userName: string (required) - The display name of the user who wrote the review
+    //   - rating: number (required) - The rating given to the business (1-5)
+    //   - comment: string (required) - The text of the review
+    //   - date: timestamp (required) - The timestamp when the review was created
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the resource (for user-owned documents)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if user is owner based on document's uid field
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    // Verify UID hasn't been tampered with on create
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == request.auth.uid;
+    }
+
+    // Ensure uid field is not modified on update
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    // Validate required fields exist
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate string length
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate that a list is a list and enforces size limits
+    function isValidList(list, maxSize) {
+      return list is list && list.size() <= maxSize;
+    }
+
+    // Validate optional string (if present, must be string and within length)
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate that the document contains only the allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate that the document hasn't changed in the fields that are not allowed to be changed
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'businessName', 'role', 'phone', 'category', 'district', 'gst', 'favorites', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             isValidOptionalString('displayName', 0, 100) &&
+             isValidOptionalString('photoURL', 0, 500) &&
+             isValidOptionalString('businessName', 0, 200) &&
+             isValidOptionalString('role', 0, 50) &&
+             isValidOptionalString('phone', 0, 20) &&
+             isValidOptionalString('category', 0, 100) &&
+             isValidOptionalString('district', 0, 100) &&
+             isValidOptionalString('gst', 0, 50) &&
+             (!( 'favorites' in data ) || isValidList(data.favorites, 1000)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidSite(data) {
+      return hasOnlyAllowedFields(['id', 'userId', 'name', 'location', 'contactNumber', 'mapUrl', 'inchargeName', 'inchargeContact']) &&
+             data.id is number &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.location is string && data.location.size() > 0 && data.location.size() < 500 &&
+             isValidOptionalString('contactNumber', 0, 20) &&
+             isValidOptionalString('mapUrl', 0, 500) &&
+             isValidOptionalString('inchargeName', 0, 100) &&
+             isValidOptionalString('inchargeContact', 0, 20);
+    }
+
+    function isValidProject(data) {
+      return hasOnlyAllowedFields(['id', 'userId', 'name', 'startDate', 'estimatedCompletionDate', 'status', 'description', 'estimatedCost', 'siteId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.startDate is string && data.startDate.size() > 0 && data.startDate.size() < 50 &&
+             isValidOptionalString('estimatedCompletionDate', 0, 50) &&
+             data.status is string && data.status.size() > 0 && data.status.size() < 50 &&
+             isValidOptionalString('description', 0, 2000) &&
+             (!( 'estimatedCost' in data ) || data.estimatedCost is number) &&
+             (!( 'siteId' in data ) || data.siteId is number);
+    }
+
+    function isValidReview(data) {
+      return hasOnlyAllowedFields(['id', 'businessId', 'userId', 'userName', 'rating', 'comment', 'date']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.businessId is string && data.businessId.size() > 0 && data.businessId.size() < 100 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() >= 0 && data.comment.size() <= 2000 &&
+             data.date is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && uidUnchanged();
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'email', 'createdAt']) && uidNotModified();
+      allow delete: if isOwner(userId);
+    }
+
+    match /sites/{siteId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidSite(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidSite(request.resource.data) && resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['id', 'userId']);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /projects/{projectId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidProject(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidProject(request.resource.data) && resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['id', 'userId']);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true; // Reviews are public
+      allow create: if isAuthenticated() && isValidReview(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidReview(request.resource.data) && resource.data.userId == request.auth.uid && areImmutableFieldsUnchanged(['id', 'businessId', 'userId', 'date']);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

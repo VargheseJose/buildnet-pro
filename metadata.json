@@ -1,0 +1,8 @@
+{
+  "name": "BuildNet AI ",
+  "description": "An AI-powered assistant to find construction industry professionals, suppliers, and services in Kerala, using Google Maps for up-to-date and accurate information.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}

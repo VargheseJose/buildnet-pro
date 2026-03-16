@@ -1,0 +1,212 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique identifier of the user"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The email address of the user"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "The URL of the user's profile photo"
+        },
+        "businessName": {
+          "type": "string",
+          "description": "The name of the user's business"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user (e.g., Admin, Contractor, Client)"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The contact phone number of the user"
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the business"
+        },
+        "district": {
+          "type": "string",
+          "description": "The district of the business"
+        },
+        "gst": {
+          "type": "string",
+          "description": "The GST number of the business"
+        },
+        "favorites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of business IDs that the user has favorited"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the user was created"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Site": {
+      "title": "Site",
+      "description": "A construction site",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "number",
+          "description": "The unique identifier of the site"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns the site"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the site"
+        },
+        "location": {
+          "type": "string",
+          "description": "The location of the site"
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "Contact number for the site"
+        },
+        "mapUrl": {
+          "type": "string",
+          "description": "Google Maps URL for the site"
+        },
+        "inchargeName": {
+          "type": "string",
+          "description": "Name of the person in charge"
+        },
+        "inchargeContact": {
+          "type": "string",
+          "description": "Contact number of the person in charge"
+        }
+      },
+      "required": ["id", "userId", "name", "location"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A construction project",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier of the project"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns the project"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the project"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the project"
+        },
+        "estimatedCompletionDate": {
+          "type": "string",
+          "description": "The estimated completion date"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the project"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the project"
+        },
+        "estimatedCost": {
+          "type": "number",
+          "description": "Estimated cost of the project"
+        },
+        "siteId": {
+          "type": "number",
+          "description": "ID of the associated site"
+        }
+      },
+      "required": ["id", "userId", "name", "startDate", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A review for a business",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique identifier of the review"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "The ID of the business being reviewed"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who wrote the review"
+        },
+        "userName": {
+          "type": "string",
+          "description": "The display name of the user who wrote the review"
+        },
+        "rating": {
+          "type": "number",
+          "description": "The rating given to the business (1-5)"
+        },
+        "comment": {
+          "type": "string",
+          "description": "The text of the review"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the review was created"
+        }
+      },
+      "required": ["id", "businessId", "userId", "userName", "rating", "comment", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Stores user profiles"
+    },
+    "/sites/{siteId}": {
+      "schema": {
+        "$ref": "#/entities/Site"
+      },
+      "description": "Stores construction sites"
+    },
+    "/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/Project"
+      },
+      "description": "Stores construction projects"
+    },
+    "/reviews/{reviewId}": {
+      "schema": {
+        "$ref": "#/entities/Review"
+      },
+      "description": "Stores business reviews"
+    }
+  }
+}
